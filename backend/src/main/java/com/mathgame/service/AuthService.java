@@ -51,6 +51,8 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setRole("student");
         user.setLevel(1);
+        user.setRankPoints(0);
+        user.setRank("bronze");
         user.setAvatar(AvatarUtil.randomAvatar());
         user.setCreatedAt(Instant.now());
 
@@ -96,7 +98,7 @@ public class AuthService {
 
         return Map.of(
                 "user", EntityMapper.toUserDto(user),
-                "progress", EntityMapper.toProgressDto(progress)
+                "progress", EntityMapper.toProgressDto(progress, user)
         );
     }
 
@@ -118,7 +120,7 @@ public class AuthService {
     private Map<String, Object> authResponse(UserEntity user, UserProgressEntity progress, String token) {
         return Map.of(
                 "user", EntityMapper.toUserDto(user),
-                "progress", EntityMapper.toProgressDto(progress),
+                "progress", EntityMapper.toProgressDto(progress, user),
                 "accessToken", token
         );
     }

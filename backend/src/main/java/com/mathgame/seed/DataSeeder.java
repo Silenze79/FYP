@@ -85,6 +85,8 @@ public class DataSeeder implements CommandLineRunner {
         admin.setPasswordHash(passwordEncoder.encode(ADMIN_PASSWORD));
         admin.setRole("admin");
         admin.setLevel(99);
+        admin.setRankPoints(5000);
+        admin.setRank("master");
         admin.setAvatar("👨‍💼");
         admin.setCreatedAt(Instant.parse("2023-12-01T00:00:00Z"));
 
@@ -97,6 +99,7 @@ public class DataSeeder implements CommandLineRunner {
         progress.setCurrentStreak(50);
         progress.setLongestStreak(50);
         progress.setAchievements(new ArrayList<>());
+        progress.setClaimedRewards(new ArrayList<>());
 
         Map<String, Integer> skills = UserProgressEntity.defaultSkillLevels();
         skills.put("arithmetic", 100);

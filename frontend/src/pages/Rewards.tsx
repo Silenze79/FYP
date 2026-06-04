@@ -7,10 +7,10 @@ interface RewardsProps {
   user: User;
   userProgress: UserProgress;
   onBack: () => void;
-  onUpdateProgress?: (progress: Partial<UserProgress>) => void;
+  onClaimReward?: (rewardId: string) => void | Promise<void>;
 }
 
-export function Rewards({ user, userProgress, onBack, onUpdateProgress }: RewardsProps) {
+export function Rewards({ user, userProgress, onBack, onClaimReward }: RewardsProps) {
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'quiz' | 'streak' | 'points' | 'mastery'>('all');
   const [earnedAchievements, setEarnedAchievements] = useState<Achievement[]>([]);
   const [lockedAchievements, setLockedAchievements] = useState<Achievement[]>([]);
@@ -65,18 +65,10 @@ export function Rewards({ user, userProgress, onBack, onUpdateProgress }: Reward
   };
 
   const handleClaimAchievement = (achievementId: string) => {
-    // Update user progress with claimed reward
-    const currentClaimedRewards = userProgress.claimedRewards || [];
-    const updatedClaimedRewards = [...currentClaimedRewards, achievementId];
-    
-    // Call the update callback if provided
-    if (onUpdateProgress) {
-      onUpdateProgress({
-        claimedRewards: updatedClaimedRewards
-      });
+    if (userProgress.claimedRewards?.includes(achievementId)) return;
+    if (onClaimReward) {
+      void onClaimReward(achievementId);
     }
-    
-    console.log('Claimed achievement:', achievementId);
   };
 
   const categories = [

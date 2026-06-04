@@ -265,8 +265,15 @@ export function registerUser(username: string, email: string, password: string):
   mockPasswords[email] = password;
 
   // Initialize progress
-  mockProgress[newUser.id] = {
-    userId: newUser.id,
+  mockProgress[newUser.id] = createDefaultProgress(newUser.id);
+
+  persistLocalState(newUser.id);
+  return newUser;
+}
+
+function createDefaultProgress(userId: string): UserProgress {
+  return {
+    userId,
     totalPoints: 0,
     quizzesTaken: 0,
     correctAnswers: 0,
@@ -274,15 +281,34 @@ export function registerUser(username: string, email: string, password: string):
     currentStreak: 0,
     longestStreak: 0,
     achievements: [],
+    claimedRewards: [],
     skillLevels: {
       arithmetic: 0,
       algebra: 0,
       geometry: 0,
       statistics: 0,
     },
+    rankPoints: 0,
+    currentRank: 'bronze',
   };
+}
 
-  return newUser;
+function persistLocalState(userId: string): void {
+  const user = mockUsers.find((u) => u.id === userId);
+  const progress = mockProgress[userId];
+  if (!user || !progress) return;
+  try {
+    localStorage.setItem(
+      `mathgame_state_${userId}`,
+      JSON.stringify({
+        user,
+        progress,
+        savedAt: new Date().toISOString(),
+      })
+    );
+  } catch {
+    // ignore quota errors
+  }
 }
 
 function getRandomAvatar(): string {
@@ -296,22 +322,41 @@ export function getCurrentUser(): User {
 }
 
 export function getUserProgress(userId: string): UserProgress {
-  return mockProgress[userId] || {
-    userId,
-    totalPoints: 0,
-    quizzesTaken: 0,
-    correctAnswers: 0,
-    totalQuestions: 0,
-    currentStreak: 0,
-    longestStreak: 0,
-    achievements: [],
-    skillLevels: {
-      arithmetic: 0,
-      algebra: 0,
-      geometry: 0,
-      statistics: 0,
-    },
+  try {
+    const raw = localStorage.getItem(`mathgame_state_${userId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.progress) {
+        mockProgress[userId] = {
+          ...createDefaultProgress(userId),
+          ...parsed.progress,
+          claimedRewards: parsed.progress.claimedRewards ?? [],
+        };
+      }
+      if (parsed.user) {
+        const idx = mockUsers.findIndex((u) => u.id === userId);
+        if (idx >= 0) {
+          mockUsers[idx] = { ...mockUsers[idx], ...parsed.user };
+        }
+      }
+    }
+  } catch {
+    // use in-memory defaults
+  }
+
+  return mockProgress[userId] || createDefaultProgress(userId);
+}
+
+export function updateUserProgress(userId: string, updates: Partial<UserProgress>): UserProgress {
+  const current = getUserProgress(userId);
+  mockProgress[userId] = {
+    ...current,
+    ...updates,
+    claimedRewards: updates.claimedRewards ?? current.claimedRewards ?? [],
+    achievements: updates.achievements ?? current.achievements ?? [],
   };
+  persistLocalState(userId);
+  return mockProgress[userId];
 }
 
 export function getAllUsers(): User[] {
@@ -331,7 +376,8 @@ export function updateUser(userId: string, updates: Partial<User>): User | null 
     ...mockUsers[userIndex],
     ...updates,
   };
-  
+
+  persistLocalState(userId);
   return mockUsers[userIndex];
 }
 

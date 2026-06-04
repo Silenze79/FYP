@@ -9,6 +9,8 @@ public record UserDto(
         String role,
         int level,
         String avatar,
-        String createdAt
+        String createdAt,
+        int rankPoints,
+        String rank
 ) {
 }

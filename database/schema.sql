@@ -13,10 +13,14 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash   VARCHAR(255) NOT NULL,
     role            VARCHAR(20)  NOT NULL DEFAULT 'student',  -- student | admin
     level           INT          NOT NULL DEFAULT 1,
-    rank_points     INT          NOT NULL DEFAULT 0,
+    rank_points     INT          NOT NULL DEFAULT 0,          -- competitive matchmaking points
+    rank            VARCHAR(20)  NOT NULL DEFAULT 'bronze',   -- bronze|silver|gold|platinum|diamond|master
     avatar          VARCHAR(500),
     created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_rank ON users (rank);
+CREATE INDEX IF NOT EXISTS idx_users_rank_points ON users (rank_points);
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);
@@ -33,12 +37,24 @@ CREATE TABLE IF NOT EXISTS user_progress (
     total_questions   INT         NOT NULL DEFAULT 0,
     current_streak    INT         NOT NULL DEFAULT 0,
     longest_streak    INT         NOT NULL DEFAULT 0,
-    achievements      CLOB,       -- JSON array of achievement ids
-    claimed_rewards   CLOB,       -- JSON array of reward ids
-    skill_levels      CLOB,       -- JSON: { arithmetic, algebra, geometry, statistics }
+    achievements      CLOB,       -- JSON: ["first_quiz", "perfect_score", ...]
+    claimed_rewards   CLOB,       -- JSON: achievement ids the user has claimed
+    skill_levels      CLOB,       -- JSON: { "arithmetic": 0, "algebra": 0, ... }
     updated_at        TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_progress_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
+
+-- Rewards the user has obtained (claimed achievements)
+CREATE TABLE IF NOT EXISTS reward_obtain (
+    id          VARCHAR(36)  NOT NULL PRIMARY KEY,
+    user_id     VARCHAR(36)  NOT NULL,
+    reward_id   VARCHAR(50)  NOT NULL,
+    obtained_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_reward_obtain_user_reward UNIQUE (user_id, reward_id),
+    CONSTRAINT fk_reward_obtain_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_reward_obtain_user ON reward_obtain (user_id);
 
 -- =============================================================================
 -- QUESTIONS & QUIZZES

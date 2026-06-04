@@ -183,11 +183,26 @@ export const userAPI = {
     });
   },
 
+  async getProgress(userId: string) {
+    return fetchAPI<{ progress: UserProgress }>(`/progress/${userId}`);
+  },
+
   async updateProgress(userId: string, progress: Partial<UserProgress>) {
     return fetchAPI<{ progress: UserProgress }>(`/progress/${userId}`, {
       method: 'PUT',
       body: JSON.stringify(progress),
     });
+  },
+
+  async claimReward(userId: string, rewardId: string) {
+    return fetchAPI<{ progress: UserProgress }>(`/progress/${userId}/claim-reward`, {
+      method: 'POST',
+      body: JSON.stringify({ rewardId }),
+    });
+  },
+
+  async getRewardsObtained(userId: string) {
+    return fetchAPI<{ rewardsObtained: string[] }>(`/user/${userId}/reward-obtain`);
   },
 
   async getLeaderboard() {

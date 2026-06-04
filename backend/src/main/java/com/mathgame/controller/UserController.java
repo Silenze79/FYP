@@ -54,6 +54,30 @@ public class UserController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
+    @GetMapping("/user/{userId}/reward-obtain")
+    public ResponseEntity<?> getRewardsObtained(@PathVariable String userId) {
+        UserPrincipal principal = requirePrincipal();
+        if (principal == null) {
+            return unauthorized();
+        }
+        if (!principal.userId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Unauthorized"));
+        }
+        return ResponseEntity.ok(Map.of("rewardsObtained", userService.loadRewardsObtained(userId)));
+    }
+
+    @GetMapping("/progress/{userId}")
+    public ResponseEntity<?> getProgress(@PathVariable String userId) {
+        UserPrincipal principal = requirePrincipal();
+        if (principal == null) {
+            return unauthorized();
+        }
+        if (!principal.userId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Unauthorized"));
+        }
+        return ResponseEntity.ok(userService.getProgress(userId));
+    }
+
     @PutMapping("/progress/{userId}")
     public ResponseEntity<?> updateProgress(@PathVariable String userId, @RequestBody Map<String, Object> updates) {
         UserPrincipal principal = requirePrincipal();
@@ -64,6 +88,23 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Unauthorized to update this progress"));
         }
         return ResponseEntity.ok(Map.of("progress", userService.updateProgress(userId, updates)));
+    }
+
+    @PostMapping("/progress/{userId}/claim-reward")
+    public ResponseEntity<?> claimReward(@PathVariable String userId, @RequestBody Map<String, String> body) {
+        UserPrincipal principal = requirePrincipal();
+        if (principal == null) {
+            return unauthorized();
+        }
+        if (!principal.userId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Unauthorized"));
+        }
+        String rewardId = body.get("rewardId");
+        try {
+            return ResponseEntity.ok(Map.of("progress", userService.claimReward(userId, rewardId)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/leaderboard")

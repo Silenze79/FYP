@@ -16,9 +16,18 @@ Initial relational schema for the Mathematics Game. Tables align with the Java b
 
 **PostgreSQL:** Use the same script; adjust `CLOB` → `TEXT` if required.
 
+## Migrations
+
+| File | Changes |
+|------|---------|
+| `migrations/V2__user_rank_reward_obtain.sql` | `users.rank`, `users.rank_points`, `reward_obtain` table |
+
+The Java backend runs this migration automatically on startup (`DatabaseMigrationRunner`).
+
 ## Core tables
 
-- **users** — accounts (student/admin)
+- **users** — accounts; includes **`rank_points`** and **`rank`** (tier)
+- **reward_obtain** — each row = one reward/achievement claimed by a user
 - **user_progress** — points, streaks, skill levels (JSON columns)
 - **questions** — quiz bank
 - **quiz_sessions** / **quiz_session_answers** — attempt history

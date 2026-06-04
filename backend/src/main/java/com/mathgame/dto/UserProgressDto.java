@@ -13,6 +13,9 @@ public record UserProgressDto(
         int longestStreak,
         List<String> achievements,
         List<String> claimedRewards,
-        Map<String, Integer> skillLevels
+        List<String> rewardsObtained,
+        Map<String, Integer> skillLevels,
+        int rankPoints,
+        String currentRank
 ) {
 }

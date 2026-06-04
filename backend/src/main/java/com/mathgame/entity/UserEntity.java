@@ -28,6 +28,13 @@ public class UserEntity {
 
     private int level;
 
+    @Column(name = "rank_points", nullable = false)
+    private int rankPoints;
+
+    /** Competitive tier: bronze, silver, gold, platinum, diamond, master */
+    @Column(nullable = false, length = 20)
+    private String rank;
+
     private String avatar;
 
     @Column(nullable = false)
@@ -79,6 +86,22 @@ public class UserEntity {
 
     public void setLevel(int level) {
         this.level = level;
+    }
+
+    public int getRankPoints() {
+        return rankPoints;
+    }
+
+    public void setRankPoints(int rankPoints) {
+        this.rankPoints = rankPoints;
+    }
+
+    public String getRank() {
+        return rank;
+    }
+
+    public void setRank(String rank) {
+        this.rank = rank;
     }
 
     public String getAvatar() {

@@ -19,13 +19,26 @@ export interface UserProgress {
   currentStreak: number;
   longestStreak: number;
   achievements: string[];
-  claimedRewards?: string[]; // IDs of rewards that have been claimed
+  claimedRewards: string[];
+  /** From `reward_obtain` table (same ids as claimedRewards when synced) */
+  rewardsObtained?: string[];
   skillLevels: {
     arithmetic: number;
     algebra: number;
     geometry: number;
     statistics: number;
   };
+  /** Competitive rank tier (bronze, silver, gold, …) — from API or derived locally */
+  currentRank?: string;
+  /** Mirror of user.rankPoints for progress payloads */
+  rankPoints?: number;
+}
+
+/** Snapshot persisted locally and synced to the backend */
+export interface StoredUserState {
+  user: User;
+  progress: UserProgress;
+  savedAt: string;
 }
 
 export interface Question {

@@ -12,9 +12,17 @@ import { Rewards } from '../pages/Rewards';
 import { Settings } from '../pages/Settings';
 import { authAPI, userAPI } from '../services/api';
 import { authenticateUser, registerUser as localRegisterUser, getUserProgress } from '../services/userService';
+import {
+  normalizeUser,
+  normalizeProgress,
+  saveToLocalStorage,
+  saveUserProgress,
+  claimReward,
+} from '../services/progressService';
 import { User, UserProgress } from '../types';
 import { toast, Toaster } from 'sonner@2.0.3';
 import { checkNewAchievements } from '../lib/achievements';
+import { getRankByPoints } from '../lib/rankingSystem';
 
 type View = 'home' | 'quiz' | 'ai-teaching' | 'matchmaking' | 'leaderboard' | 'profile' | 'admin' | 'rewards' | 'settings';
 type AuthView = 'login' | 'register';
@@ -36,8 +44,11 @@ export default function App() {
     try {
       const { data, error } = await authAPI.getSession();
       if (data && !error) {
-        setCurrentUser(data.user);
-        setUserProgress(data.progress);
+        const user = normalizeUser(data.user, data.progress);
+        const progress = normalizeProgress(data.progress, user);
+        saveToLocalStorage(user, progress);
+        setCurrentUser(user);
+        setUserProgress(progress);
         setIsAuthenticated(true);
       }
     } catch (error) {
@@ -50,20 +61,25 @@ export default function App() {
   const handleLogin = async (email: string, password: string) => {
     const { data, error } = await authAPI.signIn(email, password);
     if (data && !error) {
-      setCurrentUser(data.user);
-      setUserProgress(data.progress);
+      const user = normalizeUser(data.user, data.progress);
+      const progress = normalizeProgress(data.progress, user);
+      saveToLocalStorage(user, progress);
+      setCurrentUser(user);
+      setUserProgress(progress);
       setIsAuthenticated(true);
-      toast.success(`Welcome back, ${data.user.username}!`);
+      toast.success(`Welcome back, ${user.username}!`);
     } else if (error && error.includes('Failed to fetch')) {
       // Fallback to local authentication if API is unavailable
       console.log('🔄 Using local authentication (offline mode)');
       const user = authenticateUser(email, password);
       if (user) {
-        const progress = getUserProgress(user.id);
-        setCurrentUser(user);
+        const progress = normalizeProgress(getUserProgress(user.id), user);
+        const normalized = normalizeUser(user, progress);
+        saveToLocalStorage(normalized, progress);
+        setCurrentUser(normalized);
         setUserProgress(progress);
         setIsAuthenticated(true);
-        toast.success(`Welcome back, ${user.username}! (Offline Mode)`);
+        toast.success(`Welcome back, ${normalized.username}! (Offline Mode)`);
       } else {
         toast.error('Invalid email or password');
       }
@@ -75,20 +91,25 @@ export default function App() {
   const handleRegister = async (username: string, email: string, password: string) => {
     const { data, error } = await authAPI.signUp(username, email, password);
     if (data && !error) {
-      setCurrentUser(data.user);
-      setUserProgress(data.progress);
+      const user = normalizeUser(data.user, data.progress);
+      const progress = normalizeProgress(data.progress, user);
+      saveToLocalStorage(user, progress);
+      setCurrentUser(user);
+      setUserProgress(progress);
       setIsAuthenticated(true);
-      toast.success(`Welcome, ${data.user.username}! Your account has been created.`);
+      toast.success(`Welcome, ${user.username}! Your account has been created.`);
     } else if (error && error.includes('Failed to fetch')) {
       // Fallback to local registration if API is unavailable
       console.log('🔄 Using local registration (offline mode)');
       try {
         const user = localRegisterUser(username, email, password);
-        const progress = getUserProgress(user.id);
-        setCurrentUser(user);
+        const progress = normalizeProgress(getUserProgress(user.id), user);
+        const normalized = normalizeUser(user, progress);
+        saveToLocalStorage(normalized, progress);
+        setCurrentUser(normalized);
         setUserProgress(progress);
         setIsAuthenticated(true);
-        toast.success(`Welcome, ${user.username}! (Offline Mode)`);
+        toast.success(`Welcome, ${normalized.username}! (Offline Mode)`);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to create account');
       }
@@ -187,15 +208,9 @@ export default function App() {
         );
       }
       
-      setUserProgress(newProgress);
-      
-      // Update progress in database (silently fail if offline)
-      try {
-        await userAPI.updateProgress(currentUser.id, newProgress);
-      } catch (error) {
-        // Silently fail - progress is already updated locally
-        console.log('Progress sync skipped - will sync when online');
-      }
+      const { user, progress } = await saveUserProgress(currentUser, newProgress);
+      setCurrentUser(user);
+      setUserProgress(progress);
     }
   };
 
@@ -212,22 +227,15 @@ export default function App() {
       
       // Update user with new rank points
       const newRankPoints = (currentUser.rankPoints || 0) + rankPointsGained;
-      const updatedUser = {
-        ...currentUser,
+      const newRank = getRankByPoints(newRankPoints).name.toLowerCase();
+
+      const { user, progress } = await saveUserProgress(currentUser, newProgress, {
         rankPoints: newRankPoints,
-      };
-      
-      setUserProgress(newProgress);
-      setCurrentUser(updatedUser);
-      
-      // Update both progress and user in database
-      try {
-        await userAPI.updateProgress(currentUser.id, newProgress);
-        await userAPI.updateUser(currentUser.id, { rankPoints: newRankPoints });
-        toast.success(`+${rankPointsGained} Rank Points!`);
-      } catch (error) {
-        console.log('Sync skipped - will sync when online');
-      }
+        rank: newRank,
+      });
+      setCurrentUser(user);
+      setUserProgress(progress);
+      toast.success(`+${rankPointsGained} Rank Points!`);
     }
   };
 
@@ -245,19 +253,24 @@ export default function App() {
   // Update user progress (for rewards claiming, etc.)
   const handleUpdateProgress = async (progressUpdates: Partial<UserProgress>) => {
     if (currentUser && userProgress) {
-      const updatedProgress = {
-        ...userProgress,
-        ...progressUpdates,
-      };
-      
-      setUserProgress(updatedProgress);
-      
-      // Try to sync to database (silently fail if offline)
-      try {
-        await userAPI.updateProgress(currentUser.id, updatedProgress);
-      } catch (error) {
-        console.log('Progress sync skipped - will sync when online');
-      }
+      const updatedProgress = { ...userProgress, ...progressUpdates };
+      const { user, progress } = await saveUserProgress(currentUser, updatedProgress);
+      setCurrentUser(user);
+      setUserProgress(progress);
+    }
+  };
+
+  const handleClaimReward = async (rewardId: string) => {
+    if (!currentUser || !userProgress) return;
+    try {
+      const progress = await claimReward(currentUser, userProgress, rewardId);
+      setUserProgress(progress);
+      toast.success('Reward saved to your profile!');
+    } catch {
+      await handleUpdateProgress({
+        claimedRewards: [...(userProgress.claimedRewards ?? []), rewardId],
+      });
+      toast.success('Reward claimed (saved locally)');
     }
   };
 
@@ -391,7 +404,7 @@ export default function App() {
                 user={currentUser}
                 userProgress={userProgress}
                 onBack={() => handleViewChange('home')}
-                onUpdateProgress={handleUpdateProgress}
+                onClaimReward={handleClaimReward}
               />
             )}
             {currentView === 'settings' && (
